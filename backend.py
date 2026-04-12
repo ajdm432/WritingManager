@@ -13,7 +13,7 @@ load_dotenv()
 PK_FIELD = constants.DBField.PK
 SK_FIELD = constants.DBField.SK
 
-DYNAMO_TABLE_NAME = os.getenv('TABLE_NAME')
+DYNAMO_TABLE_NAME = os.getenv('TABLE_NAME', '')
 dynamo_config = Config(
     connect_timeout=constants.DB_TIMEOUT,
     read_timeout=constants.DB_TIMEOUT,
@@ -21,8 +21,7 @@ dynamo_config = Config(
         "total_max_attempts": constants.DB_RETRIES + 1 # includes initial request so +1
     }
 )
-S3_BUCKET_NAME = os.getenv('BUCKET_NAME')
-AWS_REGION = os.getenv('AWS_REGION')
+S3_BUCKET_NAME = os.getenv('BUCKET_NAME', '')
 
 class DBManager():
     """This class handles logic for interfacing with DynamoDB and S3."""
@@ -40,8 +39,6 @@ class DBManager():
             raise ValueError('TABLE_NAME environment variable not set.')
         if S3_BUCKET_NAME == '':
             raise ValueError('S3_BUCKET_NAME environment variable not set.')
-        if AWS_REGION == '':
-            raise ValueError('AWS_REGION environment variable not set.')
 
         self.table  = self.dynamodb.Table(DYNAMO_TABLE_NAME)
         self.bucket = self.s3.Bucket(S3_BUCKET_NAME)
