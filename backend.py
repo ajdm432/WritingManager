@@ -46,7 +46,7 @@ class DBManager():
     def exists_in_db(self):
         """Returns `True` if the document exists in DynamoDB; `False` otherwise."""
         db_resp = self._get_db_item()
-        if "Item" not in db_resp or db_resp is None:
+        if db_resp is None or "Item" not in db_resp:
             return False
         self.existing_db_item = db_resp["Item"]
         if constants.DBField.CREATED_AT not in self.existing_db_item:
@@ -114,13 +114,16 @@ class DBManager():
                 }
             )
         except ClientError as err:
-            print("DynamoDB error: %s\nwith code: %s",
-                  err.response["Error"]["Message"],
-                  err.response["Error"]["Code"]
+            print(f"""
+                  DynamoDB error: 
+                  {err.response["Error"]["Message"]}\n
+                  with code: {err.response["Error"]["Code"]}
+                  """
                 )
             raise
-        else:
-            return response
+        if response is None:
+            raise ValueError('Failed to get response from DynamoDB.')
+        return response
 
     def _write_batch(self, items):
         """
@@ -161,7 +164,6 @@ class DBManager():
         now = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
         created_date = now
         updating = False
-        created_date = None
         existing_tags = []
         if self.existing_db_item is not None:
             updating = True
