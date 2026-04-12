@@ -4,9 +4,6 @@ import sys
 import string
 from enum import Enum
 
-DB_TIMEOUT = 15
-DB_RETRIES = 5
-
 class DocType(str, Enum):
     """Enum for document types."""
     ADVENTURE = "adventure"

@@ -10,15 +10,18 @@ from mgmt_utils import get_file_ext
 
 load_dotenv()
 
+DB_TIMEOUT = 15
+DB_RETRIES = 5
+
 PK_FIELD = constants.DBField.PK
 SK_FIELD = constants.DBField.SK
 
 DYNAMO_TABLE_NAME = os.getenv('TABLE_NAME', '')
 dynamo_config = Config(
-    connect_timeout=constants.DB_TIMEOUT,
-    read_timeout=constants.DB_TIMEOUT,
+    connect_timeout=DB_TIMEOUT,
+    read_timeout=DB_TIMEOUT,
     retries={
-        "total_max_attempts": constants.DB_RETRIES + 1 # includes initial request so +1
+        "total_max_attempts": DB_RETRIES + 1 # includes initial request so +1
     }
 )
 S3_BUCKET_NAME = os.getenv('BUCKET_NAME', '')
