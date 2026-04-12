@@ -14,7 +14,7 @@ def markdown_flow(path_name: str) -> int:
         valid, error = mgmt_utils.is_valid_frontmatter(
             fm,
             constants.FrontMatterKey.TYPEKEY,
-            constants.FrontMatterKeySets
+            constants.FrontMatterKeyLists
         )
         if not valid:
             print("md file contains invalid frontmatter: ", error)
@@ -24,7 +24,7 @@ def markdown_flow(path_name: str) -> int:
     print(f"Document appears to be a {doc_type} with...")
     mgmt_utils.print_frontmatter(
         fm,
-        constants.FrontMatterKeySets[doc_type],
+        constants.FrontMatterKeyLists[doc_type],
         constants.FrontMatterOptional
     )
     correct_resp = input("Is this correct? (y/n) > ")
@@ -83,7 +83,7 @@ def markdown_flow(path_name: str) -> int:
 
 def folder_flow(path_name: str) -> int:
     """Flow for pdf files."""
-    pass
+    raise NotImplementedError
 
 def main() -> int:
     """Main function for the backend management process."""

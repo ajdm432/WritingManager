@@ -187,7 +187,7 @@ class DBManager():
 
         # required keys used in SK are normalized
         # Preserve original values in dedicated entry fields.
-        required_keys = constants.FrontMatterKeySets[self.doc_type]
+        required_keys = constants.FrontMatterKeyLists[self.doc_type]
         for k in required_keys:
             json[k] = self.metadata[k]
 

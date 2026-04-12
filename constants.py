@@ -33,7 +33,7 @@ class FrontMatterKey(str, Enum):
     CHAPTERTITLE = "chapter_title"
     TITLE = "title"
 
-FrontMatterKeySets: dict[DocType, set[FrontMatterKey | DBField]] = {
+FrontMatterKeyLists: dict[DocType, list[FrontMatterKey | DBField]] = {
     DocType.ADVENTURE: [
         FrontMatterKey.TITLE
         # TODO handle remaining adventure frontmatter
