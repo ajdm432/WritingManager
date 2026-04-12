@@ -39,7 +39,7 @@ def markdown_flow(path_name: str) -> int:
             return 1
     print("-" * 20)
     db_manager = backend.DBManager(fm, path_name, doc_type)
-    exists = db_manager.exists_in_db()
+    exists, existing_item = db_manager.exists_in_db()
     if exists:
         print("File already exists in database. What would you like to do?")
         print("1. Replace existing entry with this one.")
@@ -48,9 +48,9 @@ def markdown_flow(path_name: str) -> int:
         change_resp = input("> ")
         match(change_resp):
             case "1":
-                db_manager.write_md_to_db()
+                db_manager.write_md_to_db(existing_item)
             case "2":
-                db_manager.delete_md_from_db()
+                db_manager.delete_md_from_db(existing_item)
             case "3":
                 stat_bool = db_manager.get_md_status()
                 status, new_status = ["published", "unpublished"] if stat_bool else ["unpublished", "published"]
@@ -59,7 +59,7 @@ def markdown_flow(path_name: str) -> int:
                 status_resp = input("(y/n) > ")
                 match(status_resp):
                     case "y":
-                        db_manager.change_md_status()
+                        db_manager.change_md_status(existing_item)
                     case "n":
                         return 0
                     case _:
@@ -73,7 +73,7 @@ def markdown_flow(path_name: str) -> int:
         add_resp = input("(y/n) > ")
         match(add_resp):
             case "y":
-                db_manager.write_md_to_db()
+                db_manager.write_md_to_db(None)
             case "n":
                 return 0
             case _:

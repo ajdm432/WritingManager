@@ -36,7 +36,6 @@ class DBManager():
         self.doc_type = doc_type
         self.doc_pk = constants.get_section_pk(doc_type)
         self.doc_sk = constants.DocTypeToSK[doc_type](metadata)
-        self.existing_db_item = None
 
         if DYNAMO_TABLE_NAME == '':
             raise ValueError('TABLE_NAME environment variable not set.')
@@ -50,13 +49,13 @@ class DBManager():
         """Returns `True` if the document exists in DynamoDB; `False` otherwise."""
         db_resp = self._get_db_item()
         if db_resp is None or "Item" not in db_resp:
-            return False
-        self.existing_db_item = db_resp["Item"]
-        if constants.DBField.CREATED_AT not in self.existing_db_item:
-            raise ValueError('Created at field not found on DynamoDB item.')
-        return True
+            return False, None
+        existing_db_item = db_resp["Item"]
+        if constants.DBField.CREATED_AT not in existing_db_item:
+            raise ValueError('Created at field not found on existing DynamoDB item.')
+        return True, existing_db_item
 
-    def write_md_to_db(self, publish: bool = False):
+    def write_md_to_db(self, existing_db_item: dict = None, publish: bool = False):
         """Writes the document's metadata to DynamoDB."""
         s3_key = constants.DocTypeToS3Folder[self.doc_type]
         s3_key += "/"+self.doc_sk.replace("#", "_")
@@ -66,22 +65,22 @@ class DBManager():
             s3_key
         )
         # write the corresponding entries to dynamodb
-        write_items = self._create_db_items(s3_key, publish)
+        write_items = self._create_db_items(s3_key, existing_db_item, publish)
         self._write_batch(write_items)
 
-    def delete_md_from_db(self):
+    def delete_md_from_db(self, existing_db_item):
         """Deletes the document's metadata from DynamoDB."""
-        if self.existing_db_item is None:
+        if existing_db_item is None:
             raise ValueError('Document not found in DynamoDB when attempting to delete.')
-        if constants.DBField.S3_PATH not in self.existing_db_item:
+        if constants.DBField.S3_PATH not in existing_db_item:
             raise ValueError('S3 path field not found on DynamoDB item when attempting to delete.')
-        assert self.doc_pk == self.existing_db_item[PK_FIELD]
-        assert self.doc_sk == self.existing_db_item[SK_FIELD]
+        assert self.doc_pk == existing_db_item[PK_FIELD]
+        assert self.doc_sk == existing_db_item[SK_FIELD]
         # need to clean up tag entries as well
-        s3_path = self.existing_db_item[constants.DBField.S3_PATH]
+        s3_path = existing_db_item[constants.DBField.S3_PATH]
         delete_keys = [(self.doc_pk, self.doc_sk)]
-        if constants.DBField.TAGS in self.existing_db_item:
-            for tag in self.existing_db_item[constants.DBField.TAGS]:
+        if constants.DBField.TAGS in existing_db_item:
+            for tag in existing_db_item[constants.DBField.TAGS]:
                 tag_pk = constants.get_tag_pk(tag)
                 delete_keys.append((tag_pk, self.doc_sk))
         for pk, sk in delete_keys:
@@ -99,12 +98,14 @@ class DBManager():
             raise ValueError('Publication status field not found on DynamoDB item.')
         return item[constants.DBField.PUBLISHED]
 
-    def change_md_status(self):
+    def change_md_status(self, existing_db_item):
         """Changes the status of the document in DynamoDB."""
-        if constants.DBField.PUBLISHED not in self.existing_db_item:
+        if existing_db_item is None:
+            raise ValueError('Attempted to change status of document not found in DynamoDB.')
+        if constants.DBField.PUBLISHED not in existing_db_item:
             raise ValueError('Publication status field not found on DynamoDB item.')
-        self.existing_db_item[constants.DBField.PUBLISHED] = not self.existing_db_item[constants.DBField.PUBLISHED]
-        self._write_batch([self.existing_db_item])
+        existing_db_item[constants.DBField.PUBLISHED] = not existing_db_item[constants.DBField.PUBLISHED]
+        self._write_batch([existing_db_item])
 
     def _get_db_item(self):
         """Returns the DynamoDB item for the document."""
@@ -162,19 +163,19 @@ class DBManager():
             )
             raise
 
-    def _create_db_items(self, s3_path: str, publish: bool = False):
+    def _create_db_items(self, s3_path: str, existing_db_item = None,  publish: bool = False):
         db_items = []
         now = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
         created_date = now
         updating = False
         existing_tags = []
-        if self.existing_db_item is not None:
+        if existing_db_item is not None:
             updating = True
-            if constants.DBField.CREATED_AT not in self.existing_db_item:
+            if constants.DBField.CREATED_AT not in existing_db_item:
                 raise ValueError('Created at field not found on DynamoDB item.')
-            created_date = self.existing_db_item[constants.DBField.CREATED_AT]
-            if constants.DBField.TAGS in self.existing_db_item:
-                existing_tags = self.existing_db_item[constants.DBField.TAGS]
+            created_date = existing_db_item[constants.DBField.CREATED_AT]
+            if constants.DBField.TAGS in existing_db_item:
+                existing_tags = existing_db_item[constants.DBField.TAGS]
 
         json = {
             PK_FIELD: self.doc_pk,
