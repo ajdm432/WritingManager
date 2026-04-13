@@ -140,11 +140,11 @@ class DBManager():
                 for i in items:
                     writer.put_item(Item=i)
         except ClientError as err:
-            print("Couldn't load data into table %s. Error code: %s. Error message: %s",
-                  self.table.name,
-                  err.response['Error']['Code'],
-                  err.response['Error']['Message']
-                )
+            print(f"""
+                Couldn't load data into table {self.table.name}.
+                Error code: {err.response['Error']['Code']}.
+                Error message: {err.response['Error']['Message']}
+                """)
             raise
 
     def _delete_item(self, pk, sk):
@@ -155,11 +155,11 @@ class DBManager():
             self.table.delete_item(Key={PK_FIELD: pk, SK_FIELD: sk})
         except ClientError as err:
             print(
-                "Couldn't delete item %s %s. Here's why: %s: %s",
-                pk,
-                sk,
-                err.response["Error"]["Code"],
-                err.response["Error"]["Message"],
+                f"""
+                Couldn't delete item {pk} {sk}. 
+                Here's why: {err.response["Error"]["Code"]}: 
+                {err.response["Error"]["Message"]}
+                """
             )
             raise
 
