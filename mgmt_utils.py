@@ -2,6 +2,7 @@
 
 import os
 import constants
+import frontmatter
 
 ERROR_INVALID_NAME = 123
 
@@ -59,3 +60,54 @@ def print_frontmatter(
     for key in optional_keys:
         if key in frontmatter:
             print(f"{key.value}: {frontmatter[key]}")
+
+def load_frontmatter(pathname: str) -> dict:
+    """Loads frontmatter from a markdown file."""
+    with open(pathname, encoding="utf-8") as f:
+        fm = frontmatter.load(f)
+        valid, error = is_valid_frontmatter(
+            fm,
+            constants.FrontMatterKey.TYPEKEY,
+            constants.FrontMatterKeyLists
+        )
+        if not valid:
+            raise ValueError("md file contains invalid frontmatter: ", error)
+    return fm
+
+def execute_existing_document(db_manager, existing_item, selection) -> int:
+    """Runs db operation based on user input"""
+    match(selection):
+        case "1":
+            db_manager.write_md_to_db(existing_item)
+        case "2":
+            db_manager.delete_md_from_db(existing_item)
+        case "3":
+            stat_bool = db_manager.get_md_status()
+            status, new_status = ["published", "unpublished"] if stat_bool else ["unpublished", "published"]
+            print(f"Current status: {status}")
+            print(f"Would you like to change it to {new_status}?")
+            status_resp = input("(y/n) > ")
+            match(status_resp):
+                case "y":
+                    db_manager.change_md_status(existing_item)
+                case "n":
+                    pass
+                case _:
+                    print("Invalid response provided.")
+                    return 1
+        case _:
+            print("Invalid response provided.")
+            return 1
+    return 0
+
+def execute_new_document(db_manager, selection) -> int:
+    """Runs db operation based on user input"""
+    match(selection):
+        case "y":
+            db_manager.write_md_to_db(None)
+        case "n":
+            pass
+        case _:
+            print("Invalid response provided.")
+            return 1
+    return 0
