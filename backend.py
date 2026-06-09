@@ -227,3 +227,8 @@ class DBManager:
                 }
                 db_items.append(tag_json)
         return db_items
+
+    def includes_rpg_system(self):
+        pk = constants.get_meta_pk("adventure-system")
+        # query for all items with this pk
+        # TODO

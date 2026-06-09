@@ -46,6 +46,13 @@ BUCKET_NAME = YourS3BucketName
 
 Each Markdown file must include YAML frontmatter with a `type` field and the required fields for that type.
 
+### Adventure
+```yaml
+---
+TODO
+---
+```
+
 ### Article
 
 ```yaml
@@ -63,6 +70,13 @@ title: My Article Title
 type: review
 subject: Film
 title: My Review Title
+---
+```
+
+### Story
+```yaml
+---
+TODO
 ---
 ```
 

@@ -41,6 +41,11 @@ def folder_flow(path_name: str) -> int:
     fm, doc_type = fm_flow(path_name)
     if fm is None:
         return 1
+    # before we do this, check what RPG systems are already defined on the backend. If this one isn't, display the current list to the user, as well as the current system for this upload.
+    # they may see that a different name for their desired system already exists, and they can choose to replace it before uploading.
+    tmp_manager = backend.DBManager(fm, path_name, doc_type)
+    if not tmp_manager.includes_rpg_system():
+        mgmt_io.prompt_rpg_system()
     zip_path = mgmt_utils.zip_folder(path_name, fm_path)
     db_flow(fm, zip_path, doc_type)
     mgmt_utils.clean_zip(zip_path)
@@ -51,7 +56,10 @@ def markdown_flow(path_name: str) -> int:
     fm, doc_type = fm_flow(path_name)
     if fm is None:
         return 1
-    db_flow(fm, path_name, doc_type)
+    if doc_type == constants.DocType.STORY:
+        return story_flow(fm, path_name, doc_type)
+    else:
+        return db_flow(fm, path_name, doc_type)
 
 
 def pdf_flow(path_name: str) -> int:

@@ -21,8 +21,8 @@ DocTypeToS3Folder = {
     DocType.ADVENTURE: "adventures",
     DocType.ARTICLE: "articles",
     DocType.REVIEW: "reviews",
-    DocType.STORY: "story_pages",
-    DocType.STORYCHAPTER: "story_chapters",
+    DocType.STORY: "themes",
+    DocType.STORYCHAPTER: "chapters",
 }
 
 
@@ -49,13 +49,13 @@ class FrontMatterKey(str, Enum):
     CHAPTERTITLE = "chapter_title"
     TITLE = "title"
     AUTHORS = "authors"
+    SYSTEM = "system"
 
 
 class FrontMatterBase(BaseModel, ABC):
     """Base class for frontmatter models."""
 
-    authors: list[str] = Field(default=[], alias=FrontMatterKey.AUTHORS)
-    tags: list[str] = Field(default=[], alias=DBField.TAGS)
+    authors: list[str] = Field(alias=FrontMatterKey.AUTHORS)
 
     @abstractmethod
     def get_sort_key(self) -> str:
@@ -70,6 +70,8 @@ class FrontMatterBase(BaseModel, ABC):
 class Adventure(FrontMatterBase):
     type: Literal[DocType.ADVENTURE]
     title: str = Field(alias=FrontMatterKey.TITLE)
+    system: str = Field(alias=FrontMatterKey.SYSTEM)
+    tags: list[str] = Field(alias=DBField.TAGS)
 
     def get_sort_key(self) -> str:
         return get_adventure_sk(self.dict(by_alias=True))
@@ -79,6 +81,7 @@ class Article(FrontMatterBase):
     type: Literal[DocType.ARTICLE]
     category: str = Field(alias=FrontMatterKey.CATEGORY)
     title: str = Field(alias=FrontMatterKey.TITLE)
+    tags: list[str] = Field(alias=DBField.TAGS)
 
     def get_sort_key(self) -> str:
         return get_article_sk(self.dict(by_alias=True))
@@ -88,6 +91,7 @@ class Review(FrontMatterBase):
     type: Literal[DocType.REVIEW]
     subject: str = Field(alias=FrontMatterKey.SUBJECT)
     title: str = Field(alias=FrontMatterKey.TITLE)
+    tags: list[str] = Field(alias=DBField.TAGS)
 
     def get_sort_key(self) -> str:
         return get_review_sk(self.dict(by_alias=True))
@@ -96,6 +100,7 @@ class Review(FrontMatterBase):
 class Story(FrontMatterBase):
     type: Literal[DocType.STORY]
     storyTitle: str = Field(alias=FrontMatterKey.STORYTITLE)
+    tags: list[str] = Field(alias=DBField.TAGS)
 
     def get_sort_key(self) -> str:
         return get_story_sk(self.dict(by_alias=True))
@@ -136,8 +141,10 @@ def get_tag_pk(tag_name: str) -> str:
 # Helpers for formatting sort keys
 def get_adventure_sk(frontmatter: dict) -> str:
     """Returns the sort key for an adventure."""
-    # TODO
-    pass
+    title = normalize_string(frontmatter[FrontMatterKey.TITLE])
+    system = normalize_string(frontmatter[FrontMatterKey.SYSTEM])
+    # TODO track system as a meta field
+    return f"SYSTEM#{system}TITLE#{title}"
 
 
 def get_article_sk(frontmatter: dict) -> str:
@@ -156,8 +163,8 @@ def get_review_sk(frontmatter: dict) -> str:
 
 def get_story_sk(frontmatter: dict) -> str:
     """Returns the sort key for a story."""
-    # TODO
-    pass
+    story_title = normalize_string(frontmatter[FrontMatterKey.STORYTITLE])
+    return f"TITLE#{story_title}"
 
 
 def get_story_chapter_sk(frontmatter: dict) -> str:
