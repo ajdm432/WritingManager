@@ -4,46 +4,98 @@ import sys
 import mgmt_utils
 import backend
 import mgmt_io
+import constants
+from typing import Tuple
 
-def markdown_flow(path_name: str) -> int:
-    """Flow for markdown files."""
+
+def fm_flow(path_name: str) -> Tuple[constants.FrontMatter, str]:
     fm = mgmt_utils.load_frontmatter(path_name)
-    doc_type = mgmt_io.doctype_message(fm)
-    if not mgmt_io.verify_frontmatter(fm, doc_type):
-        return 1
+    doc_type = mgmt_io.doctype_message(fm.dict(by_alias=True))
+    if not mgmt_io.verify_frontmatter(fm.dict(by_alias=True), doc_type):
+        return None, None
     mgmt_io.print_divider(20)
+    return fm, doc_type
+
+
+def db_flow(fm: constants.FrontMatter, path_name: str, doc_type: str) -> int:
     db_manager = backend.DBManager(fm, path_name, doc_type)
     exists, existing_item = db_manager.exists_in_db()
     if exists:
-        user_resp = mgmt_io.prompt_existing_document(db_manager, existing_item)
-        return mgmt_utils.execute_existing_document(db_manager, existing_item, user_resp)
+        user_resp = mgmt_io.prompt_existing_document()
+        return mgmt_utils.execute_existing_document(
+            db_manager, existing_item, user_resp
+        )
     else:
-        user_resp = mgmt_io.prompt_new_document(db_manager)
+        user_resp = mgmt_io.prompt_new_document()
         return mgmt_utils.execute_new_document(db_manager, user_resp)
+
 
 def folder_flow(path_name: str) -> int:
     """Flow for pdf files."""
-    raise NotImplementedError
+    fm_path = mgmt_utils.find_yaml(path_name, True)
+    if fm_path is None:
+        print(
+            "Could not find yaml file with frontmatter in the provided folder.\nPlease make sure your yaml file is in the provided folder and that there is only one yaml file in the folder."
+        )
+        return 1
+    fm, doc_type = fm_flow(path_name)
+    if fm is None:
+        return 1
+    zip_path = mgmt_utils.zip_folder(path_name, fm_path)
+    db_flow(fm, zip_path, doc_type)
+    mgmt_utils.clean_zip(zip_path)
+
+
+def markdown_flow(path_name: str) -> int:
+    """Flow for markdown files."""
+    fm, doc_type = fm_flow(path_name)
+    if fm is None:
+        return 1
+    db_flow(fm, path_name, doc_type)
+
+
+def pdf_flow(path_name: str) -> int:
+    """Flow for pdf files."""
+    fm_path = mgmt_utils.find_yaml(path_name, False)
+    if fm_path is None:
+        print(
+            "Could not find yaml file with frontmatter in the same directory as the pdf.\nPlease make sure your yaml file is in the same directory as the pdf and has the same name."
+        )
+        return 1
+    fm, doc_type = fm_flow(path_name)
+    if fm is None:
+        return 1
+    db_flow(fm, path_name, doc_type)
 
 
 def main() -> int:
     """Main function for the backend management process."""
-    path_name = mgmt_io.get_input("Please provide a path to the file or folder you would like to add to your site:").strip('" ')
+    path_name = mgmt_io.get_input(
+        "Please provide a path to the file or folder you would like to add to your site:"
+    ).strip('" ')
 
     if not mgmt_utils.is_pathname_valid(path_name):
         print("Invalid path provided.")
         return 1
 
     # check if it's a folder
-    is_folder, error = mgmt_io.is_pathname_folder_message(path_name)
-    if error is not None:
-        print(error)
-        return 1
+    is_folder = mgmt_io.is_pathname_folder_message(path_name)
 
     if is_folder:
+        # upload full folder. Must contain a yaml file with frontmatter
         return folder_flow(path_name)
-    else:
+    elif mgmt_io.is_markdown_file(path_name):
+        # upload markdown file that contains yaml frontmatter
+        print("Markdown file detected. Scanning for frontmatter...")
         return markdown_flow(path_name)
+    elif mgmt_io.is_pdf_file(path_name):
+        # upload pdf file. Yaml file with frontmatter must exist in the same directory, with the same name
+        print("PDF file detected. Scanning for frontmatter...")
+        return pdf_flow(path_name)
+    else:
+        print("Unsupported file type.")
+        return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

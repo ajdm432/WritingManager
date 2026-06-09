@@ -3,12 +3,15 @@
 import os
 import constants
 import frontmatter
+import zipfile
 
 ERROR_INVALID_NAME = 123
+
 
 def is_pathname_folder(pathname: str) -> bool:
     """Returns `True` if the passed pathname is a folder; `False` otherwise."""
     return os.path.isdir(pathname)
+
 
 def is_pathname_valid(pathname: str) -> bool:
     """Returns `True` if the passed pathname is valid; `False` otherwise."""
@@ -17,42 +20,48 @@ def is_pathname_valid(pathname: str) -> bool:
     normalized = os.path.normpath(pathname.strip('"'))
     return os.path.exists(normalized)
 
+
 def path_exists(pathname: str) -> bool:
-    '''
+    """
     True if passed pathname exists, False otherwise/
-    '''
+    """
     try:
         return is_pathname_valid(pathname) and (os.path.exists(pathname))
     except OSError:
         return False
 
+
 def get_file_ext(pathname: str) -> str:
     """Returns the file extension of the passed pathname."""
     return os.path.splitext(pathname)[1]
 
+
 def is_valid_frontmatter(
-        frontmatter: dict,
-        typekey: str,
-        keysets: dict[constants.DocType, set[constants.FrontMatterKey]]
-    ) -> tuple[bool, str]:
+    frontmatter: dict,
+    typekey: str,
+    keysets: dict[constants.DocType, set[constants.FrontMatterKey]],
+) -> tuple[bool, str]:
     """Returns True if provided frontmatter has expected keys and values"""
     keys = set(frontmatter.keys())
 
-    if not typekey in keys:
+    # verify that typekey exists
+    if typekey not in keys:
         return False, f"missing required key: {typekey}"
 
+    # verify that required keys exist
     required_keys = keysets[frontmatter[typekey]]
     for key in required_keys:
-        if not key in keys:
+        if key not in keys:
             return False, f"missing required key: {key}"
 
     return True, ""
 
+
 def print_frontmatter(
-        frontmatter: dict,
-        required_keys: set[constants.FrontMatterKey],
-        optional_keys: set[constants.FrontMatterKey]
-    ):
+    frontmatter: dict,
+    required_keys: set[constants.FrontMatterKey],
+    optional_keys: set[constants.FrontMatterKey],
+):
     """Prints frontmatter to console."""
     for key in required_keys:
         print(f"{key.value}: {frontmatter[key]}")
@@ -61,33 +70,34 @@ def print_frontmatter(
         if key in frontmatter:
             print(f"{key.value}: {frontmatter[key]}")
 
-def load_frontmatter(pathname: str) -> dict:
+
+def load_frontmatter(pathname: str) -> constants.FrontMatter:
     """Loads frontmatter from a markdown file."""
     with open(pathname, encoding="utf-8") as f:
-        fm = frontmatter.load(f)
-        valid, error = is_valid_frontmatter(
-            fm,
-            constants.FrontMatterKey.TYPEKEY,
-            constants.FrontMatterKeyLists
-        )
-        if not valid:
-            raise ValueError("md file contains invalid frontmatter: ", error)
+        fm_raw = frontmatter.load(f)
+        # use pydantic to validate
+        fm = constants.FrontMatter(fm_raw)
     return fm
+
 
 def execute_existing_document(db_manager, existing_item, selection) -> int:
     """Runs db operation based on user input"""
-    match(selection):
+    match selection:
         case "1":
             db_manager.write_md_to_db(existing_item)
         case "2":
             db_manager.delete_md_from_db(existing_item)
         case "3":
             stat_bool = db_manager.get_md_status()
-            status, new_status = ["published", "unpublished"] if stat_bool else ["unpublished", "published"]
+            status, new_status = (
+                ["published", "unpublished"]
+                if stat_bool
+                else ["unpublished", "published"]
+            )
             print(f"Current status: {status}")
             print(f"Would you like to change it to {new_status}?")
             status_resp = input("(y/n) > ")
-            match(status_resp):
+            match status_resp:
                 case "y":
                     db_manager.change_md_status(existing_item)
                 case "n":
@@ -100,9 +110,10 @@ def execute_existing_document(db_manager, existing_item, selection) -> int:
             return 1
     return 0
 
+
 def execute_new_document(db_manager, selection) -> int:
     """Runs db operation based on user input"""
-    match(selection):
+    match selection:
         case "y":
             db_manager.write_md_to_db(None)
         case "n":
@@ -111,3 +122,41 @@ def execute_new_document(db_manager, selection) -> int:
             print("Invalid response provided.")
             return 1
     return 0
+
+
+def find_yaml(path_name: str, folder: bool) -> str:
+    """Finds the yaml file with frontmatter in the provided folder."""
+    if folder:
+        dir_name = path_name
+    else:
+        dir_name = os.path.dirname(path_name)
+
+    yaml_files = [
+        f for f in os.listdir(dir_name) if (f.endswith(".yaml") or f.endswith(".yml"))
+    ]
+    if len(yaml_files) != 1:
+        return None
+    return os.path.join(path_name, yaml_files[0])
+
+
+def zip_folder(path_name: str, yaml_path: str) -> str:
+    """Creates a zip file of the provided folder, leaving out the yaml file, in the tmp directory."""
+    zip_path = os.pwd() + "/tmp/" + os.path.basename(path_name) + ".zip"
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(path_name):
+            for file in files:
+                if file == os.path.basename(yaml_path):
+                    continue
+                full_path = os.path.join(root, file)
+                relative_path = os.path.relpath(full_path, path_name)
+                zipf.write(full_path, relative_path)
+
+    return zip_path
+
+
+def clean_zip(zip_path: str) -> None:
+    """Removes the zip file and its parent directory if it is empty."""
+    os.remove(zip_path)
+    if os.listdir(os.path.dirname(zip_path)):
+        return
+    os.rmdir(os.path.dirname(zip_path))

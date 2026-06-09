@@ -81,7 +81,7 @@ chapter_title: The Beginning
 
 All document types may also include:
 
-- `author` - Author name
+- `authors` - List of author names (e.g. `[Jimmy Jim, Bobby Bob]`)
 - `tags` - A list of tags (e.g. `[fantasy, adventure]`)
 
 ## Usage
