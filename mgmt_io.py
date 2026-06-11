@@ -79,3 +79,24 @@ def prompt_new_document() -> str:
     """Prompts the user to handle a new entry in the database."""
     print("Would you like to add this file to the database?")
     return input("(y/n) > ")
+
+
+def prompt_rpg_system(curr_system: str, rpg_systems: list[str]) -> str:
+    print(
+        "RPG system not found on backend. The current system for this upload is: "
+        + curr_system
+    )
+    print("The following systems are already defined on the backend:")
+    for system in rpg_systems:
+        print(system)
+    return input("\nWould you like to proceed with this system? (y/n) > ")
+
+
+def prompt_story_folder(found: list[str], missing: list[str]) -> str:
+    print("Found files for the following in the folder:")
+    for f in found:
+        print(f)
+    print("Files for the following are missing from the folder:")
+    for f in missing:
+        print(f)
+    return input("\nWould you like to proceed with these files? (y/n) > ")

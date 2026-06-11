@@ -6,8 +6,10 @@ from dotenv import load_dotenv
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
+from boto3.dynamodb.conditions import Key
 import constants
 from mgmt_utils import get_file_ext
+from types import Tuple
 
 load_dotenv()
 
@@ -53,7 +55,7 @@ class DBManager:
         self.table = self.dynamodb.Table(DYNAMO_TABLE_NAME)
         self.bucket = self.s3.Bucket(S3_BUCKET_NAME)
 
-    def exists_in_db(self):
+    def exists_in_db(self) -> Tuple[bool, dict]:
         """Returns `True` if the document exists in DynamoDB; `False` otherwise."""
         db_resp = self._get_db_item()
         if db_resp is None or "Item" not in db_resp:
@@ -226,9 +228,49 @@ class DBManager:
                     SK_FIELD: self.doc_sk,
                 }
                 db_items.append(tag_json)
+
+        if self.doc_type == constants.DocType.ARTICLE:
+            # create article category metadata
+            cat_json = {
+                PK_FIELD: constants.get_meta_pk("article-category"),
+                SK_FIELD: self.metadata.category,
+            }
+            db_items.append(cat_json)
+
+        if self.doc_type == constants.DocType.ADVENTURE:
+            # create adventure rpg system metadata
+            system_json = {
+                PK_FIELD: constants.get_meta_pk("adventure-system"),
+                SK_FIELD: self.metadata.system,
+            }
+            db_items.append(system_json)
+
         return db_items
 
-    def includes_rpg_system(self):
+    def get_rpg_systems(self) -> list[str]:
+        """Returns all RPG systems currently defined on the backend."""
         pk = constants.get_meta_pk("adventure-system")
-        # query for all items with this pk
-        # TODO
+        try:
+            response = self.table.query(KeyConditionExpression=Key(PK_FIELD).eq(pk))
+        except ClientError as err:
+            print(f"""
+                DynamoDB error: 
+                {err.response["Error"]["Message"]}\n
+                with code: {err.response["Error"]["Code"]}
+                """)
+            raise
+        if response is None:
+            raise ValueError("Failed to get response from DynamoDB.")
+        if "Items" not in response:
+            raise ValueError("Failed to get items from DynamoDB.")
+        return [i[SK_FIELD] for i in response["Items"]]
+
+    def write_story_to_s3(self):
+        """Uploads the story files to S3."""
+        for file in os.listdir(self.src_path):
+            s3_path = f"{self.metadata.storyTitle}/{file}"
+            self.bucket.upload_file(self.src_path + file, S3_BUCKET_NAME, s3_path)
+
+    def delete_story_from_s3(self):
+        """Deletes the story files from S3."""
+        self.bucket.objects.filter(Prefix=self.metadata.storyTitle).delete()

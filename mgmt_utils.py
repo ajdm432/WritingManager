@@ -4,6 +4,7 @@ import os
 import constants
 import frontmatter
 import zipfile
+from types import Tuple
 
 ERROR_INVALID_NAME = 123
 
@@ -85,7 +86,11 @@ def execute_existing_document(db_manager, existing_item, selection) -> int:
     match selection:
         case "1":
             db_manager.write_md_to_db(existing_item)
+            if db_manager.doc_type == constants.DocType.STORY:
+                db_manager.write_story_to_s3()
         case "2":
+            if db_manager.doc_type == constants.DocType.STORY:
+                db_manager.delete_story_from_s3()
             db_manager.delete_md_from_db(existing_item)
         case "3":
             stat_bool = db_manager.get_md_status()
@@ -160,3 +165,33 @@ def clean_zip(zip_path: str) -> None:
     if os.listdir(os.path.dirname(zip_path)):
         return
     os.rmdir(os.path.dirname(zip_path))
+
+
+def validate_story_folder(src_path: str) -> Tuple[[str], [str]]:
+    expected = [
+        "description",
+        "theme",
+        "background",
+        "cover",
+        "logo",
+        "banner",
+    ]
+    found = []
+    for file in os.listdir(src_path):
+        if file == "description.md":
+            found.append(file.split(".")[0])
+        elif file == "theme.css":
+            found.append(file.split(".")[0])
+        elif file in ["background.jpg", "background.png", "background.jpeg"]:
+            found.append(file.split(".")[0])
+        elif file in ["cover.jpg", "cover.png", "cover.jpeg"]:
+            found.append(file.split(".")[0])
+        elif file in ["logo.png", "logo.jpg", "logo.jpeg", "logo.svg", "logo.ico"]:
+            found.append(file.split(".")[0])
+        elif file in ["banner.jpg", "banner.png", "banner.jpeg"]:
+            found.append(file.split(".")[0])
+        else:
+            print(f"Unsupported file type: {file}")
+            raise ValueError
+    missing = list(set(expected) - set(found))
+    return found, missing

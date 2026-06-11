@@ -8,7 +8,18 @@ import constants
 from typing import Tuple
 
 
+def story_flow(fm: constants.FrontMatter, path_name: str, doc_type: str) -> int:
+    """Flow for story folders."""
+    found, missing = mgmt_utils.validate_story_folder(path_name)
+    resp = mgmt_io.prompt_story_folder(found, missing)
+    if resp != "y":
+        print("Aborting upload.")
+        return 1
+    db_flow(fm, path_name, doc_type)
+
+
 def fm_flow(path_name: str) -> Tuple[constants.FrontMatter, str]:
+    """Flow for frontmatter files."""
     fm = mgmt_utils.load_frontmatter(path_name)
     doc_type = mgmt_io.doctype_message(fm.dict(by_alias=True))
     if not mgmt_io.verify_frontmatter(fm.dict(by_alias=True), doc_type):
@@ -18,6 +29,7 @@ def fm_flow(path_name: str) -> Tuple[constants.FrontMatter, str]:
 
 
 def db_flow(fm: constants.FrontMatter, path_name: str, doc_type: str) -> int:
+    """Flow for database operations."""
     db_manager = backend.DBManager(fm, path_name, doc_type)
     exists, existing_item = db_manager.exists_in_db()
     if exists:
@@ -44,8 +56,12 @@ def folder_flow(path_name: str) -> int:
     # before we do this, check what RPG systems are already defined on the backend. If this one isn't, display the current list to the user, as well as the current system for this upload.
     # they may see that a different name for their desired system already exists, and they can choose to replace it before uploading.
     tmp_manager = backend.DBManager(fm, path_name, doc_type)
-    if not tmp_manager.includes_rpg_system():
-        mgmt_io.prompt_rpg_system()
+    rpg_systems = tmp_manager.get_rpg_systems()
+    if fm.system not in rpg_systems:
+        resp = mgmt_io.prompt_rpg_system(fm.system, rpg_systems)
+        if resp != "y":
+            print("Aborting upload.")
+            return 1
     zip_path = mgmt_utils.zip_folder(path_name, fm_path)
     db_flow(fm, zip_path, doc_type)
     mgmt_utils.clean_zip(zip_path)

@@ -49,7 +49,7 @@ class FrontMatterKey(str, Enum):
     CHAPTERTITLE = "chapter_title"
     TITLE = "title"
     AUTHORS = "authors"
-    SYSTEM = "system"
+    RPGSYSTEM = "system"
 
 
 class FrontMatterBase(BaseModel, ABC):
@@ -70,7 +70,7 @@ class FrontMatterBase(BaseModel, ABC):
 class Adventure(FrontMatterBase):
     type: Literal[DocType.ADVENTURE]
     title: str = Field(alias=FrontMatterKey.TITLE)
-    system: str = Field(alias=FrontMatterKey.SYSTEM)
+    system: str = Field(alias=FrontMatterKey.RPGSYSTEM)
     tags: list[str] = Field(alias=DBField.TAGS)
 
     def get_sort_key(self) -> str:
@@ -142,9 +142,9 @@ def get_tag_pk(tag_name: str) -> str:
 def get_adventure_sk(frontmatter: dict) -> str:
     """Returns the sort key for an adventure."""
     title = normalize_string(frontmatter[FrontMatterKey.TITLE])
-    system = normalize_string(frontmatter[FrontMatterKey.SYSTEM])
+    system = normalize_string(frontmatter[FrontMatterKey.RPGSYSTEM])
     # TODO track system as a meta field
-    return f"SYSTEM#{system}TITLE#{title}"
+    return f"RPGSYSTEM#{system}TITLE#{title}"
 
 
 def get_article_sk(frontmatter: dict) -> str:
