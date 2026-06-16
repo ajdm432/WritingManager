@@ -63,8 +63,8 @@ class FrontMatterBase(BaseModel, ABC):
 
     class Config:
         extra = "forbid"
-        anystr_strip_whitespace = True
-        allow_mutation = False
+        str_strip_whitespace = True
+        frozen = True
 
 
 class Adventure(FrontMatterBase):

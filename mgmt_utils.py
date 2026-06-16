@@ -4,9 +4,11 @@ import os
 import constants
 import frontmatter
 import zipfile
-from types import Tuple
+from typing import Tuple
+from pydantic import TypeAdapter
 
 ERROR_INVALID_NAME = 123
+FRONTMATTER_ADAPTER = TypeAdapter(constants.FrontMatter)
 
 
 def is_pathname_folder(pathname: str) -> bool:
@@ -14,20 +16,15 @@ def is_pathname_folder(pathname: str) -> bool:
     return os.path.isdir(pathname)
 
 
-def is_pathname_valid(pathname: str) -> bool:
-    """Returns `True` if the passed pathname is valid; `False` otherwise."""
-    if not isinstance(pathname, str) or not pathname:
-        return False
-    normalized = os.path.normpath(pathname.strip('"'))
-    return os.path.exists(normalized)
-
-
 def path_exists(pathname: str) -> bool:
     """
     True if passed pathname exists, False otherwise/
     """
+    if not isinstance(pathname, str) or not pathname:
+        return False
     try:
-        return is_pathname_valid(pathname) and (os.path.exists(pathname))
+        pathname = os.path.normpath(pathname.strip('"'))
+        return os.path.exists(pathname)
     except OSError:
         return False
 
@@ -41,7 +38,7 @@ def is_valid_frontmatter(
     frontmatter: dict,
     typekey: str,
     keysets: dict[constants.DocType, set[constants.FrontMatterKey]],
-) -> tuple[bool, str]:
+) -> Tuple[bool, str]:
     """Returns True if provided frontmatter has expected keys and values"""
     keys = set(frontmatter.keys())
 
@@ -60,16 +57,10 @@ def is_valid_frontmatter(
 
 def print_frontmatter(
     frontmatter: dict,
-    required_keys: set[constants.FrontMatterKey],
-    optional_keys: set[constants.FrontMatterKey],
 ):
     """Prints frontmatter to console."""
-    for key in required_keys:
-        print(f"{key.value}: {frontmatter[key]}")
-
-    for key in optional_keys:
-        if key in frontmatter:
-            print(f"{key.value}: {frontmatter[key]}")
+    for key, value in frontmatter.items():
+        print(f"{key}: {value}\n")
 
 
 def load_frontmatter(pathname: str) -> constants.FrontMatter:
@@ -77,7 +68,7 @@ def load_frontmatter(pathname: str) -> constants.FrontMatter:
     with open(pathname, encoding="utf-8") as f:
         fm_raw = frontmatter.load(f)
         # use pydantic to validate
-        fm = constants.FrontMatter(fm_raw)
+        fm = FRONTMATTER_ADAPTER.validate_python(fm_raw)
     return fm
 
 
@@ -146,7 +137,7 @@ def find_yaml(path_name: str, folder: bool) -> str:
 
 def zip_folder(path_name: str, yaml_path: str) -> str:
     """Creates a zip file of the provided folder, leaving out the yaml file, in the tmp directory."""
-    zip_path = os.pwd() + "/tmp/" + os.path.basename(path_name) + ".zip"
+    zip_path = os.getcwd() + "/tmp/" + os.path.basename(path_name) + ".zip"
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
         for root, dirs, files in os.walk(path_name):
             for file in files:
@@ -167,7 +158,7 @@ def clean_zip(zip_path: str) -> None:
     os.rmdir(os.path.dirname(zip_path))
 
 
-def validate_story_folder(src_path: str) -> Tuple[[str], [str]]:
+def validate_story_folder(src_path: str) -> Tuple[list[str], list[str]]:
     expected = [
         "description",
         "theme",

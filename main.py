@@ -98,7 +98,7 @@ def main() -> int:
         "Please provide a path to the file or folder you would like to add to your site:"
     ).strip('" ')
 
-    if not mgmt_utils.is_pathname_valid(path_name):
+    if not mgmt_utils.path_exists(path_name):
         print("Invalid path provided.")
         return 1
 

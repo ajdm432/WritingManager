@@ -42,13 +42,9 @@ def doctype_message(frontmatter: dict) -> str:
     return doc_type
 
 
-def verify_frontmatter(frontmatter: dict, doctype: str) -> bool:
+def verify_frontmatter(frontmatter: dict) -> bool:
     """Prompts the user to verify frontmatter."""
-    mgmt_utils.print_frontmatter(
-        frontmatter,
-        constants.FrontMatterKeyLists[doctype],
-        constants.FrontMatterOptional,
-    )
+    mgmt_utils.print_frontmatter(frontmatter)
     correct_resp = input("Is this correct? (y/n) > ")
     match correct_resp:
         case "y":

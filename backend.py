@@ -9,7 +9,7 @@ from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key
 import constants
 from mgmt_utils import get_file_ext
-from types import Tuple
+from typing import Tuple
 
 load_dotenv()
 
@@ -168,11 +168,7 @@ class DBManager:
             self.table.delete_item(Key={PK_FIELD: pk, SK_FIELD: sk})
         except ClientError as err:
             print(
-                f"""
-                Couldn't delete item {pk} {sk}. 
-                Here's why: {err.response["Error"]["Code"]}: 
-                {err.response["Error"]["Message"]}
-                """
+                f"Couldn't delete item {pk} {sk}.\nHere's why: {err.response['Error']['Code']}:\n{err.response['Error']['Message']}"
             )
             raise
 
@@ -206,7 +202,7 @@ class DBManager:
         # Preserve original values in dedicated entry fields.
         meta_dict = self.metadata.dict(by_alias=True)
         found_keys = []
-        for k, v in meta_dict:
+        for k, v in meta_dict.items():
             json[k] = v
             found_keys.append(k)
 
@@ -253,11 +249,9 @@ class DBManager:
         try:
             response = self.table.query(KeyConditionExpression=Key(PK_FIELD).eq(pk))
         except ClientError as err:
-            print(f"""
-                DynamoDB error: 
-                {err.response["Error"]["Message"]}\n
-                with code: {err.response["Error"]["Code"]}
-                """)
+            print(
+                f"DynamoDB error:\n{err.response['Error']['Message']}\nwith code: {err.response['Error']['Code']}"
+            )
             raise
         if response is None:
             raise ValueError("Failed to get response from DynamoDB.")
@@ -267,10 +261,14 @@ class DBManager:
 
     def write_story_to_s3(self):
         """Uploads the story files to S3."""
+        if not self.doc_type == constants.DocType.STORY:
+            raise ValueError("Cannot write_story_to_s3: document is not a story.")
         for file in os.listdir(self.src_path):
             s3_path = f"{self.metadata.storyTitle}/{file}"
             self.bucket.upload_file(self.src_path + file, S3_BUCKET_NAME, s3_path)
 
     def delete_story_from_s3(self):
         """Deletes the story files from S3."""
+        if not self.doc_type == constants.DocType.STORY:
+            raise ValueError("Cannot delete_story_from_s3: document is not a story.")
         self.bucket.objects.filter(Prefix=self.metadata.storyTitle).delete()
