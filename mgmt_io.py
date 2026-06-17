@@ -98,16 +98,19 @@ def prompt_story_folder(found: list[str], missing: list[str]) -> str:
     return input("\nWould you like to proceed with these files? (y/n) > ")
 
 
-def prompt_status_change(status, new_status, db_manager, existing_item) -> int:
+def prompt_status_change(status, new_status) -> bool:
     print(f"Current status: {status}")
     print(f"Would you like to change it to {new_status}?")
     status_resp = input("(y/n) > ")
+    execute = False
     match status_resp:
         case "y":
-            db_manager.change_md_status(existing_item)
+            execute = True
         case "n":
+            print("Aborting.")
             pass
         case _:
-            print("Invalid response provided.")
-            return 1
-    return 0
+            msg = "Invalid response provided."
+            print(msg + "\nAborting.")
+            raise ValueError(msg)
+    return execute

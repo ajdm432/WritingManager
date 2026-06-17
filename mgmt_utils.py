@@ -4,7 +4,6 @@ import os
 import constants
 import frontmatter
 import zipfile
-from mgmt_io import prompt_status_change
 from typing import Tuple
 from pydantic import TypeAdapter
 
@@ -51,7 +50,9 @@ def load_frontmatter(pathname: str) -> constants.FrontMatter:
     return fm
 
 
-def execute_existing_document(db_manager, existing_item, selection) -> int:
+def execute_existing_document(
+    db_manager, existing_item, selection
+) -> Tuple[int, str | None]:
     """Runs db operation based on user input"""
     match selection:
         case "1":
@@ -65,16 +66,12 @@ def execute_existing_document(db_manager, existing_item, selection) -> int:
             db_manager.delete_md_from_db(existing_item)
         case "3":
             stat_bool = db_manager.get_md_status()
-            status, new_status = (
-                ["published", "unpublished"]
-                if stat_bool
-                else ["unpublished", "published"]
-            )
-            return prompt_status_change(status, new_status, db_manager, existing_item)
+            new_status = "unpublished" if stat_bool else "published"
+            return 0, new_status
         case _:
             print("Invalid response provided.")
-            return 1
-    return 0
+            return 1, None
+    return 0, None
 
 
 def execute_new_document(db_manager, selection) -> int:
@@ -108,7 +105,7 @@ def find_yaml(path_name: str, folder: bool) -> str:
 def zip_folder(path_name: str, yaml_path: str) -> str:
     """Creates a zip file of the provided folder, leaving out the yaml file, in the tmp directory."""
     temp = os.path.join(os.getcwd(), "tmp")
-    os.mkdir(temp)
+    os.makedirs(temp, exists_ok=True)
     zip_path = os.path.join(temp, os.path.basename(path_name) + ".zip")
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
         for root, _, files in os.walk(path_name):
@@ -154,7 +151,8 @@ def validate_story_folder(src_path: str) -> Tuple[list[str], list[str]]:
         elif file in ["banner.jpg", "banner.png", "banner.jpeg"]:
             found.append(file.split(".")[0])
         else:
-            print(f"Unsupported file type: {file}")
-            raise ValueError
+            msg = f"Unsupported file type: {file}. Must be one of: {expected}"
+            print(msg)
+            raise ValueError(msg)
     missing = list(set(expected) - set(found))
     return found, missing

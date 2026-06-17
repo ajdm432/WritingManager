@@ -27,8 +27,8 @@ class DBManager:
         metadata: constants.FrontMatter,
         src_path: str,
         doc_type: constants.DocType,
-        dynamo: boto3.resource,
-        s3: boto3.resource,
+        dynamo: boto3.resources.base.ServiceResource,
+        s3: boto3.resources.base.ServiceResource,
     ):
         self.dynamodb = dynamo
         self.s3 = s3

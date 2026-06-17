@@ -20,7 +20,7 @@ dynamo_config = Config(
     },
 )
 
-dynamo = boto3.resource("dynamodb", dynamo_config)
+dynamo = boto3.resource("dynamodb", config=dynamo_config)
 s3 = boto3.resource("s3")
 
 
@@ -50,20 +50,34 @@ def db_flow(
     fm: constants.FrontMatter, path_name: str, doc_type: constants.DocType
 ) -> int:
     """Flow for database operations."""
-    db_manager = backend.DBManager(fm, path_name, doc_type, s3, dynamo)
+    db_manager = backend.DBManager(fm, path_name, doc_type, dynamo, s3)
     exists, existing_item = db_manager.exists_in_db()
     if exists:
         user_resp = mgmt_io.prompt_existing_document()
-        return mgmt_utils.execute_existing_document(
+        success, new_status = mgmt_utils.execute_existing_document(
             db_manager, existing_item, user_resp
         )
+        if success != 0:
+            return 1
+        if new_status is not None:
+            try:
+                execute = mgmt_io.prompt_status_change(
+                    existing_item[constants.DBField.PUBLISHED],
+                    new_status,
+                )
+                if execute:
+                    db_manager.change_md_status(existing_item)
+            except Exception as e:
+                print(e)
+                return 1
+        return 0
     else:
         user_resp = mgmt_io.prompt_new_document()
         return mgmt_utils.execute_new_document(db_manager, user_resp)
 
 
 def folder_flow(path_name: str) -> int:
-    """Flow for pdf files."""
+    """Flow for folder uploads."""
     fm_path = mgmt_utils.find_yaml(path_name, True)
     if fm_path is None:
         print(
@@ -77,7 +91,7 @@ def folder_flow(path_name: str) -> int:
         return story_flow(fm, path_name, doc_type)
     # before we do this, check what RPG systems are already defined on the backend. If this one isn't, display the current list to the user, as well as the current system for this upload.
     # they may see that a different name for their desired system already exists, and they can choose to replace it before uploading.
-    tmp_manager = backend.DBManager(fm, path_name, doc_type, s3, dynamo)
+    tmp_manager = backend.DBManager(fm, path_name, doc_type, dynamo, s3)
     rpg_systems = tmp_manager.get_rpg_systems()
     if fm.system not in rpg_systems:
         resp = mgmt_io.prompt_rpg_system(fm.system, rpg_systems)
