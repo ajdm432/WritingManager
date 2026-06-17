@@ -6,31 +6,51 @@ import backend
 import mgmt_io
 import constants
 from typing import Tuple
+import boto3
+from botocore.config import Config
+
+DB_TIMEOUT = 15
+DB_RETRIES = 5
+
+dynamo_config = Config(
+    connect_timeout=DB_TIMEOUT,
+    read_timeout=DB_TIMEOUT,
+    retries={
+        "total_max_attempts": DB_RETRIES + 1  # includes initial request so +1
+    },
+)
+
+dynamo = boto3.resource("dynamodb", dynamo_config)
+s3 = boto3.resource("s3")
 
 
-def story_flow(fm: constants.FrontMatter, path_name: str, doc_type: str) -> int:
+def story_flow(
+    fm: constants.FrontMatter, path_name: str, doc_type: constants.DocType
+) -> int:
     """Flow for story folders."""
     found, missing = mgmt_utils.validate_story_folder(path_name)
     resp = mgmt_io.prompt_story_folder(found, missing)
     if resp != "y":
         print("Aborting upload.")
         return 1
-    db_flow(fm, path_name, doc_type)
+    return db_flow(fm, path_name, doc_type)
 
 
 def fm_flow(path_name: str) -> Tuple[constants.FrontMatter, str]:
     """Flow for frontmatter files."""
     fm = mgmt_utils.load_frontmatter(path_name)
-    doc_type = mgmt_io.doctype_message(fm.dict(by_alias=True))
-    if not mgmt_io.verify_frontmatter(fm.dict(by_alias=True), doc_type):
+    doc_type = mgmt_io.doctype_message(fm.model_dump(by_alias=True))
+    if not mgmt_io.verify_frontmatter(fm.model_dump(by_alias=True)):
         return None, None
     mgmt_io.print_divider(20)
     return fm, doc_type
 
 
-def db_flow(fm: constants.FrontMatter, path_name: str, doc_type: str) -> int:
+def db_flow(
+    fm: constants.FrontMatter, path_name: str, doc_type: constants.DocType
+) -> int:
     """Flow for database operations."""
-    db_manager = backend.DBManager(fm, path_name, doc_type)
+    db_manager = backend.DBManager(fm, path_name, doc_type, s3, dynamo)
     exists, existing_item = db_manager.exists_in_db()
     if exists:
         user_resp = mgmt_io.prompt_existing_document()
@@ -50,12 +70,14 @@ def folder_flow(path_name: str) -> int:
             "Could not find yaml file with frontmatter in the provided folder.\nPlease make sure your yaml file is in the provided folder and that there is only one yaml file in the folder."
         )
         return 1
-    fm, doc_type = fm_flow(path_name)
+    fm, doc_type = fm_flow(fm_path)
     if fm is None:
         return 1
+    if doc_type == constants.DocType.STORY:
+        return story_flow(fm, path_name, doc_type)
     # before we do this, check what RPG systems are already defined on the backend. If this one isn't, display the current list to the user, as well as the current system for this upload.
     # they may see that a different name for their desired system already exists, and they can choose to replace it before uploading.
-    tmp_manager = backend.DBManager(fm, path_name, doc_type)
+    tmp_manager = backend.DBManager(fm, path_name, doc_type, s3, dynamo)
     rpg_systems = tmp_manager.get_rpg_systems()
     if fm.system not in rpg_systems:
         resp = mgmt_io.prompt_rpg_system(fm.system, rpg_systems)
@@ -63,8 +85,14 @@ def folder_flow(path_name: str) -> int:
             print("Aborting upload.")
             return 1
     zip_path = mgmt_utils.zip_folder(path_name, fm_path)
-    db_flow(fm, zip_path, doc_type)
-    mgmt_utils.clean_zip(zip_path)
+    try:
+        res = db_flow(fm, zip_path, doc_type)
+    except Exception as e:
+        print(e)
+        return 1
+    finally:
+        mgmt_utils.clean_zip(zip_path)
+    return res
 
 
 def markdown_flow(path_name: str) -> int:
@@ -72,10 +100,7 @@ def markdown_flow(path_name: str) -> int:
     fm, doc_type = fm_flow(path_name)
     if fm is None:
         return 1
-    if doc_type == constants.DocType.STORY:
-        return story_flow(fm, path_name, doc_type)
-    else:
-        return db_flow(fm, path_name, doc_type)
+    return db_flow(fm, path_name, doc_type)
 
 
 def pdf_flow(path_name: str) -> int:
@@ -89,7 +114,7 @@ def pdf_flow(path_name: str) -> int:
     fm, doc_type = fm_flow(path_name)
     if fm is None:
         return 1
-    db_flow(fm, path_name, doc_type)
+    return db_flow(fm, path_name, doc_type)
 
 
 def main() -> int:

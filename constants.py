@@ -1,7 +1,7 @@
 """Constants for the backend management process."""
 
 import string
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
 from abc import ABC, abstractmethod
 from typing import Literal, Annotated
@@ -56,15 +56,11 @@ class FrontMatterBase(BaseModel, ABC):
     """Base class for frontmatter models."""
 
     authors: list[str] = Field(alias=FrontMatterKey.AUTHORS)
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True, frozen=True)
 
     @abstractmethod
     def get_sort_key(self) -> str:
         raise NotImplementedError
-
-    class Config:
-        extra = "forbid"
-        str_strip_whitespace = True
-        frozen = True
 
 
 class Adventure(FrontMatterBase):
@@ -74,7 +70,7 @@ class Adventure(FrontMatterBase):
     tags: list[str] = Field(alias=DBField.TAGS)
 
     def get_sort_key(self) -> str:
-        return get_adventure_sk(self.dict(by_alias=True))
+        return get_adventure_sk(self.model_dump(by_alias=True))
 
 
 class Article(FrontMatterBase):
@@ -84,7 +80,7 @@ class Article(FrontMatterBase):
     tags: list[str] = Field(alias=DBField.TAGS)
 
     def get_sort_key(self) -> str:
-        return get_article_sk(self.dict(by_alias=True))
+        return get_article_sk(self.model_dump(by_alias=True))
 
 
 class Review(FrontMatterBase):
@@ -94,7 +90,7 @@ class Review(FrontMatterBase):
     tags: list[str] = Field(alias=DBField.TAGS)
 
     def get_sort_key(self) -> str:
-        return get_review_sk(self.dict(by_alias=True))
+        return get_review_sk(self.model_dump(by_alias=True))
 
 
 class Story(FrontMatterBase):
@@ -103,7 +99,7 @@ class Story(FrontMatterBase):
     tags: list[str] = Field(alias=DBField.TAGS)
 
     def get_sort_key(self) -> str:
-        return get_story_sk(self.dict(by_alias=True))
+        return get_story_sk(self.model_dump(by_alias=True))
 
 
 class StoryChapter(FrontMatterBase):
@@ -113,7 +109,7 @@ class StoryChapter(FrontMatterBase):
     chapterTitle: str = Field(alias=FrontMatterKey.CHAPTERTITLE)
 
     def get_sort_key(self) -> str:
-        return get_story_chapter_sk(self.dict(by_alias=True))
+        return get_story_chapter_sk(self.model_dump(by_alias=True))
 
 
 FrontMatter = Annotated[
@@ -144,7 +140,7 @@ def get_adventure_sk(frontmatter: dict) -> str:
     title = normalize_string(frontmatter[FrontMatterKey.TITLE])
     system = normalize_string(frontmatter[FrontMatterKey.RPGSYSTEM])
     # TODO track system as a meta field
-    return f"RPGSYSTEM#{system}TITLE#{title}"
+    return f"RPGSYSTEM#{system}#TITLE#{title}"
 
 
 def get_article_sk(frontmatter: dict) -> str:

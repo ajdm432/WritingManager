@@ -4,7 +4,6 @@ import os
 import datetime
 from dotenv import load_dotenv
 import boto3
-from botocore.config import Config
 from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key
 import constants
@@ -13,20 +12,10 @@ from typing import Tuple
 
 load_dotenv()
 
-DB_TIMEOUT = 15
-DB_RETRIES = 5
-
 PK_FIELD = constants.DBField.PK
 SK_FIELD = constants.DBField.SK
 
 DYNAMO_TABLE_NAME = os.getenv("TABLE_NAME", "")
-dynamo_config = Config(
-    connect_timeout=DB_TIMEOUT,
-    read_timeout=DB_TIMEOUT,
-    retries={
-        "total_max_attempts": DB_RETRIES + 1  # includes initial request so +1
-    },
-)
 S3_BUCKET_NAME = os.getenv("BUCKET_NAME", "")
 
 
@@ -38,9 +27,11 @@ class DBManager:
         metadata: constants.FrontMatter,
         src_path: str,
         doc_type: constants.DocType,
+        dynamo: boto3.resource,
+        s3: boto3.resource,
     ):
-        self.dynamodb = boto3.resource("dynamodb", config=dynamo_config)
-        self.s3 = boto3.resource("s3")
+        self.dynamodb = dynamo
+        self.s3 = s3
         self.metadata = metadata
         self.src_path = src_path
         self.doc_type = doc_type
@@ -85,8 +76,10 @@ class DBManager:
             raise ValueError(
                 "S3 path field not found on DynamoDB item when attempting to delete."
             )
-        assert self.doc_pk == existing_db_item[PK_FIELD]
-        assert self.doc_sk == existing_db_item[SK_FIELD]
+        if not self.doc_pk == existing_db_item[PK_FIELD]:
+            raise ValueError("PK field does not match when attempting to delete.")
+        if not self.doc_sk == existing_db_item[SK_FIELD]:
+            raise ValueError("SK field does not match when attempting to delete.")
         # need to clean up tag entries as well
         s3_path = existing_db_item[constants.DBField.S3_PATH]
         delete_keys = [(self.doc_pk, self.doc_sk)]
@@ -189,7 +182,7 @@ class DBManager:
             if constants.DBField.TAGS in existing_db_item:
                 existing_tags = existing_db_item[constants.DBField.TAGS]
 
-        json = {
+        db_json = {
             PK_FIELD: self.doc_pk,
             SK_FIELD: self.doc_sk,
             constants.DBField.S3_PATH: s3_path,
@@ -200,13 +193,13 @@ class DBManager:
 
         # required keys used in SK are normalized
         # Preserve original values in dedicated entry fields.
-        meta_dict = self.metadata.dict(by_alias=True)
+        meta_dict = self.metadata.model_dump(by_alias=True)
         found_keys = []
         for k, v in meta_dict.items():
-            json[k] = v
+            db_json[k] = v
             found_keys.append(k)
 
-        db_items.append(json)
+        db_items.append(db_json)
 
         if constants.DBField.TAGS in found_keys:
             new_tags = meta_dict[constants.DBField.TAGS]
@@ -265,7 +258,7 @@ class DBManager:
             raise ValueError("Cannot write_story_to_s3: document is not a story.")
         for file in os.listdir(self.src_path):
             s3_path = f"{self.metadata.storyTitle}/{file}"
-            self.bucket.upload_file(self.src_path + file, S3_BUCKET_NAME, s3_path)
+            self.bucket.upload_file(os.path.join(self.src_path, file), s3_path)
 
     def delete_story_from_s3(self):
         """Deletes the story files from S3."""
