@@ -36,6 +36,8 @@ class DBField(str, Enum):
     S3_PATH = "s3_path"
     CREATED_AT = "created_at"
     UPDATED_AT = "updated_at"
+    TAG_TARGET_PK = "target_pk"
+    TAG_TARGET_SK = "target_sk"
 
 
 class FrontMatterKey(str, Enum):
@@ -144,9 +146,9 @@ def get_meta_pk(meta_name: str) -> str:
     return f"META#{meta_name}"
 
 
-def get_tag_pk(tag_name: str) -> str:
+def get_tag_sk(tag_name: str) -> str:
     """Returns the primary key for a tag."""
-    return f"TAG#{tag_name}"
+    return normalize_string(tag_name)
 
 
 # Helpers for formatting sort keys

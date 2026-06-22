@@ -84,8 +84,7 @@ class DBManager:
         delete_keys = [(self.doc_pk, self.doc_sk)]
         if constants.DBField.TAGS in existing_db_item:
             for tag in existing_db_item[constants.DBField.TAGS]:
-                tag_pk = constants.get_tag_pk(tag)
-                delete_keys.append((tag_pk, self.doc_sk))
+                delete_keys.append(("META#TAG", constants.get_tag_sk(tag)))
         for pk, sk in delete_keys:
             self._delete_item(pk, sk)
         # remove item from s3
@@ -201,19 +200,22 @@ class DBManager:
         db_items.append(db_json)
 
         if constants.DBField.TAGS in found_keys:
+            tag_pk = "META#TAG"
             new_tags = meta_dict[constants.DBField.TAGS]
             if updating:
                 # need to check if existing tag entries need to be deleted
                 for tag in existing_tags:
                     if tag not in new_tags:
-                        self._delete_item(constants.get_tag_pk(tag), self.doc_sk)
+                        self._delete_item(tag_pk, constants.get_tag_sk(tag))
             for tag in new_tags:
                 if tag in existing_tags:
                     # do nothing if this tag already exists
                     continue
                 tag_json = {
-                    PK_FIELD: constants.get_tag_pk(tag),
-                    SK_FIELD: self.doc_sk,
+                    PK_FIELD: tag_pk,
+                    SK_FIELD: constants.get_tag_sk(tag),
+                    constants.DBField.TAG_TARGET_PK: self.doc_pk,
+                    constants.DBField.TAG_TARGET_SK: self.doc_sk,
                 }
                 db_items.append(tag_json)
 
