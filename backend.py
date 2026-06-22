@@ -56,10 +56,9 @@ class DBManager:
             raise ValueError("Created at field not found on existing DynamoDB item.")
         return True, existing_db_item
 
-    def write_md_to_db(self, existing_db_item: dict = None, publish: bool = False):
-        """Writes the document's metadata to DynamoDB."""
-        s3_key = constants.DocTypeToS3Folder[self.doc_type]
-        s3_key += "/" + self.doc_sk.replace("#", "_")
+    def write_to_db(self, existing_db_item: dict = None, publish: bool = False):
+        """Writes the document's metadata to DynamoDB and content to S3."""
+        s3_key = self.metadata.get_s3_key()
         s3_key += get_file_ext(self.src_path)
         self.bucket.upload_file(self.src_path, s3_key)
         # write the corresponding entries to dynamodb

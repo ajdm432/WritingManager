@@ -55,7 +55,7 @@ class FrontMatterKey(str, Enum):
 class FrontMatterBase(BaseModel, ABC):
     """Base class for frontmatter models."""
 
-    authors: list[str] = Field(alias=FrontMatterKey.AUTHORS)
+    authors: list[str] = Field(alias=FrontMatterKey.AUTHORS.value)
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True, frozen=True)
 
     @abstractmethod
@@ -64,52 +64,67 @@ class FrontMatterBase(BaseModel, ABC):
 
 
 class Adventure(FrontMatterBase):
-    type: Literal[DocType.ADVENTURE]
-    title: str = Field(alias=FrontMatterKey.TITLE)
-    system: str = Field(alias=FrontMatterKey.RPGSYSTEM)
-    tags: list[str] = Field(alias=DBField.TAGS)
+    type: Literal[DocType.ADVENTURE.value]
+    title: str = Field(alias=FrontMatterKey.TITLE.value)
+    system: str = Field(alias=FrontMatterKey.RPGSYSTEM.value)
+    tags: list[str] = Field(alias=DBField.TAGS.value)
 
     def get_sort_key(self) -> str:
         return get_adventure_sk(self.model_dump(by_alias=True))
 
+    def get_s3_key(self) -> str:
+        return get_adventure_s3_key(self.model_dump(by_alias=True))
+
 
 class Article(FrontMatterBase):
-    type: Literal[DocType.ARTICLE]
-    category: str = Field(alias=FrontMatterKey.CATEGORY)
-    title: str = Field(alias=FrontMatterKey.TITLE)
-    tags: list[str] = Field(alias=DBField.TAGS)
+    type: Literal[DocType.ARTICLE.value]
+    category: str = Field(alias=FrontMatterKey.CATEGORY.value)
+    title: str = Field(alias=FrontMatterKey.TITLE.value)
+    tags: list[str] = Field(alias=DBField.TAGS.value)
 
     def get_sort_key(self) -> str:
         return get_article_sk(self.model_dump(by_alias=True))
 
+    def get_s3_key(self) -> str:
+        return get_article_s3_key(self.model_dump(by_alias=True))
+
 
 class Review(FrontMatterBase):
-    type: Literal[DocType.REVIEW]
-    subject: str = Field(alias=FrontMatterKey.SUBJECT)
-    title: str = Field(alias=FrontMatterKey.TITLE)
-    tags: list[str] = Field(alias=DBField.TAGS)
+    type: Literal[DocType.REVIEW.value]
+    subject: str = Field(alias=FrontMatterKey.SUBJECT.value)
+    title: str = Field(alias=FrontMatterKey.TITLE.value)
+    tags: list[str] = Field(alias=DBField.TAGS.value)
 
     def get_sort_key(self) -> str:
         return get_review_sk(self.model_dump(by_alias=True))
 
+    def get_s3_key(self) -> str:
+        return get_review_s3_key(self.model_dump(by_alias=True))
+
 
 class Story(FrontMatterBase):
-    type: Literal[DocType.STORY]
-    storyTitle: str = Field(alias=FrontMatterKey.STORYTITLE)
-    tags: list[str] = Field(alias=DBField.TAGS)
+    type: Literal[DocType.STORY.value]
+    storyTitle: str = Field(alias=FrontMatterKey.STORYTITLE.value)
+    tags: list[str] = Field(alias=DBField.TAGS.value)
 
     def get_sort_key(self) -> str:
         return get_story_sk(self.model_dump(by_alias=True))
 
+    def get_s3_key(self) -> str:
+        return get_story_s3_key(self.model_dump(by_alias=True))
+
 
 class StoryChapter(FrontMatterBase):
-    type: Literal[DocType.STORYCHAPTER]
-    storyTitle: str = Field(alias=FrontMatterKey.STORYTITLE)
-    chapterNumber: int = Field(alias=FrontMatterKey.CHAPTERNUMBER)
-    chapterTitle: str = Field(alias=FrontMatterKey.CHAPTERTITLE)
+    type: Literal[DocType.STORYCHAPTER.value]
+    storyTitle: str = Field(alias=FrontMatterKey.STORYTITLE.value)
+    chapterNumber: int = Field(alias=FrontMatterKey.CHAPTERNUMBER.value)
+    chapterTitle: str = Field(alias=FrontMatterKey.CHAPTERTITLE.value)
 
     def get_sort_key(self) -> str:
         return get_story_chapter_sk(self.model_dump(by_alias=True))
+
+    def get_s3_key(self) -> str:
+        return get_story_chapter_s3_key(self.model_dump(by_alias=True))
 
 
 FrontMatter = Annotated[
@@ -143,11 +158,19 @@ def get_adventure_sk(frontmatter: dict) -> str:
     return f"RPGSYSTEM#{system}#TITLE#{title}"
 
 
+def get_adventure_s3_key(frontmatter: dict) -> str:
+    return f"{DocTypeToS3Folder[DocType.ADVENTURE]}/{normalize_string(frontmatter[FrontMatterKey.TITLE])}"
+
+
 def get_article_sk(frontmatter: dict) -> str:
     """Returns the sort key for an article."""
     category = normalize_string(frontmatter[FrontMatterKey.CATEGORY])
     title = normalize_string(frontmatter[FrontMatterKey.TITLE])
     return f"CATEGORY#{category}#TITLE#{title}"
+
+
+def get_article_s3_key(frontmatter: dict) -> str:
+    return f"{DocTypeToS3Folder[DocType.ARTICLE]}/{normalize_string(frontmatter[FrontMatterKey.CATEGORY])}/{normalize_string(frontmatter[FrontMatterKey.TITLE])}"
 
 
 def get_review_sk(frontmatter: dict) -> str:
@@ -157,10 +180,18 @@ def get_review_sk(frontmatter: dict) -> str:
     return f"REVIEW#{review_subject}#TITLE#{review_title}"
 
 
+def get_review_s3_key(frontmatter: dict) -> str:
+    return f"{DocTypeToS3Folder[DocType.REVIEW]}/{normalize_string(frontmatter[FrontMatterKey.TITLE])}"
+
+
 def get_story_sk(frontmatter: dict) -> str:
     """Returns the sort key for a story."""
     story_title = normalize_string(frontmatter[FrontMatterKey.STORYTITLE])
     return f"TITLE#{story_title}"
+
+
+def get_story_s3_key(frontmatter: dict) -> str:
+    return f"{DocTypeToS3Folder[DocType.STORY]}/{normalize_string(frontmatter[FrontMatterKey.STORYTITLE])}/"
 
 
 def get_story_chapter_sk(frontmatter: dict) -> str:
@@ -169,6 +200,10 @@ def get_story_chapter_sk(frontmatter: dict) -> str:
     chapter_number = frontmatter[FrontMatterKey.CHAPTERNUMBER]
     chapter_number = str(chapter_number).zfill(3)
     return f"TITLE#{story_title}#CHAPTER#{chapter_number}"
+
+
+def get_story_chapter_s3_key(frontmatter: dict) -> str:
+    return f"{DocTypeToS3Folder[DocType.STORYCHAPTER]}/{normalize_string(frontmatter[FrontMatterKey.STORYTITLE])}/{str(frontmatter[FrontMatterKey.CHAPTERNUMBER]).zfill(3)}"
 
 
 def normalize_string(s: str) -> str:

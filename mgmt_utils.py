@@ -46,7 +46,7 @@ def load_frontmatter(pathname: str) -> constants.FrontMatter:
     with open(pathname, encoding="utf-8") as f:
         fm_raw = frontmatter.load(f)
         # use pydantic to validate
-        fm = FRONTMATTER_ADAPTER.validate_python(fm_raw)
+        fm = FRONTMATTER_ADAPTER.validate_python(fm_raw.metadata)
     return fm
 
 
@@ -57,7 +57,7 @@ def execute_existing_document(
     match selection:
         case "1":
             stat_bool = db_manager.get_md_status()
-            db_manager.write_md_to_db(existing_item, publish=stat_bool)
+            db_manager.write_to_db(existing_item, publish=stat_bool)
             if db_manager.doc_type == constants.DocType.STORY:
                 db_manager.write_story_to_s3()
         case "2":
@@ -69,7 +69,7 @@ def execute_existing_document(
             new_status = "unpublished" if stat_bool else "published"
             return 0, new_status
         case _:
-            print("Invalid response provided.")
+            print("Invalid response provided. Aborting.")
             return 1, None
     return 0, None
 
@@ -78,11 +78,13 @@ def execute_new_document(db_manager, selection) -> int:
     """Runs db operation based on user input"""
     match selection:
         case "y":
-            db_manager.write_md_to_db(None)
+            db_manager.write_to_db(None)
+            if db_manager.doc_type == constants.DocType.STORY:
+                db_manager.write_story_to_s3()
         case "n":
             pass
         case _:
-            print("Invalid response provided.")
+            print("Invalid response provided. Aborting.")
             return 1
     return 0
 
@@ -105,7 +107,7 @@ def find_yaml(path_name: str, folder: bool) -> str:
 def zip_folder(path_name: str, yaml_path: str) -> str:
     """Creates a zip file of the provided folder, leaving out the yaml file, in the tmp directory."""
     temp = os.path.join(os.getcwd(), "tmp")
-    os.makedirs(temp, exists_ok=True)
+    os.makedirs(temp, exist_ok=True)
     zip_path = os.path.join(temp, os.path.basename(path_name) + ".zip")
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
         for root, _, files in os.walk(path_name):

@@ -33,7 +33,7 @@ def story_flow(
     if resp != "y":
         print("Aborting upload.")
         return 1
-    return db_flow(fm, path_name, doc_type)
+    return db_flow(fm, path_name, doc_type, is_file=False)
 
 
 def fm_flow(path_name: str) -> Tuple[constants.FrontMatter, str]:
@@ -47,7 +47,10 @@ def fm_flow(path_name: str) -> Tuple[constants.FrontMatter, str]:
 
 
 def db_flow(
-    fm: constants.FrontMatter, path_name: str, doc_type: constants.DocType
+    fm: constants.FrontMatter,
+    path_name: str,
+    doc_type: constants.DocType,
+    is_file: bool = True,
 ) -> int:
     """Flow for database operations."""
     db_manager = backend.DBManager(fm, path_name, doc_type, dynamo, s3)
@@ -72,7 +75,7 @@ def db_flow(
                 return 1
         return 0
     else:
-        user_resp = mgmt_io.prompt_new_document()
+        user_resp = mgmt_io.prompt_new_document(is_file)
         return mgmt_utils.execute_new_document(db_manager, user_resp)
 
 
@@ -87,8 +90,6 @@ def folder_flow(path_name: str) -> int:
     fm, doc_type = fm_flow(fm_path)
     if fm is None:
         return 1
-    if doc_type == constants.DocType.STORY:
-        return story_flow(fm, path_name, doc_type)
     # before we do this, check what RPG systems are already defined on the backend. If this one isn't, display the current list to the user, as well as the current system for this upload.
     # they may see that a different name for their desired system already exists, and they can choose to replace it before uploading.
     tmp_manager = backend.DBManager(fm, path_name, doc_type, dynamo, s3)
@@ -100,7 +101,7 @@ def folder_flow(path_name: str) -> int:
             return 1
     zip_path = mgmt_utils.zip_folder(path_name, fm_path)
     try:
-        res = db_flow(fm, zip_path, doc_type)
+        res = db_flow(fm, zip_path, doc_type, is_file=False)
     except Exception as e:
         print(e)
         return 1
@@ -114,7 +115,10 @@ def markdown_flow(path_name: str) -> int:
     fm, doc_type = fm_flow(path_name)
     if fm is None:
         return 1
-    return db_flow(fm, path_name, doc_type)
+    if doc_type == constants.DocType.STORY:
+        return story_flow(fm, path_name, doc_type)
+    else:
+        return db_flow(fm, path_name, doc_type)
 
 
 def pdf_flow(path_name: str) -> int:

@@ -53,7 +53,7 @@ def verify_frontmatter(frontmatter: dict) -> bool:
             print("Please correct the frontmatter. Aborting.")
             return False
         case _:
-            print("Invalid response provided.")
+            print("Invalid response provided. Aborting.")
             return False
 
 
@@ -71,13 +71,17 @@ def prompt_existing_document() -> str:
     return input("> ")
 
 
-def prompt_new_document() -> str:
+def prompt_new_document(file: bool) -> str:
     """Prompts the user to handle a new entry in the database."""
-    print("Would you like to add this file to the database?")
+    file_folder_str = "file" if file else "folder"
+    print(f"Would you like to upload this {file_folder_str} to the database?\n")
     return input("(y/n) > ")
 
 
 def prompt_rpg_system(curr_system: str, rpg_systems: list[str]) -> str:
+    """Prompts the user to handle a new entry in the database."""
+    if len(rpg_systems) == 0:
+        return "y"
     print(
         "RPG system not found on backend. The current system for this upload is: "
         + curr_system
@@ -85,7 +89,7 @@ def prompt_rpg_system(curr_system: str, rpg_systems: list[str]) -> str:
     print("The following systems are already defined on the backend:")
     for system in rpg_systems:
         print(system)
-    return input("\nWould you like to proceed with this system? (y/n) > ")
+    return input("\nWould you like to proceed with this RPG system? (y/n) > ")
 
 
 def prompt_story_folder(found: list[str], missing: list[str]) -> str:

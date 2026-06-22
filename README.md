@@ -143,9 +143,11 @@ If you wish to change expected field names or frontmatter fields, please edit `c
 
 A standard S3 bucket. The tool uploads files into subfolders by document type:
 
+- `adventures/`
 - `articles/`
+- `chapters/`
 - `reviews/`
-- `story_chapters/`
+- `themes/`
 
 ### IAM Permissions
 
