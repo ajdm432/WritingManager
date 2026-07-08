@@ -200,7 +200,7 @@ class DBManager:
         db_items.append(db_json)
 
         if constants.DBField.TAGS in found_keys:
-            tag_pk = "META#TAG"
+            tag_pk = "META#tag"
             new_tags = meta_dict[constants.DBField.TAGS]
             if updating:
                 # need to check if existing tag entries need to be deleted
