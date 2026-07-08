@@ -14,7 +14,7 @@ class DocType(str, Enum):
     ARTICLE = "article"
     REVIEW = "review"
     STORY = "story"
-    STORYCHAPTER = "story_chapter"
+    STORYCHAPTER = "chapter"
 
 
 DocTypeToS3Folder = {
@@ -155,9 +155,8 @@ def get_tag_sk(tag_name: str) -> str:
 def get_adventure_sk(frontmatter: dict) -> str:
     """Returns the sort key for an adventure."""
     title = normalize_string(frontmatter[FrontMatterKey.TITLE])
-    system = normalize_string(frontmatter[FrontMatterKey.RPGSYSTEM])
-    # TODO track system as a meta field
-    return f"RPGSYSTEM#{system}#TITLE#{title}"
+    # system = normalize_string(frontmatter[FrontMatterKey.RPGSYSTEM])
+    return f"TITLE#{title}"
 
 
 def get_adventure_s3_key(frontmatter: dict) -> str:
@@ -166,9 +165,9 @@ def get_adventure_s3_key(frontmatter: dict) -> str:
 
 def get_article_sk(frontmatter: dict) -> str:
     """Returns the sort key for an article."""
-    category = normalize_string(frontmatter[FrontMatterKey.CATEGORY])
+    # category = normalize_string(frontmatter[FrontMatterKey.CATEGORY])
     title = normalize_string(frontmatter[FrontMatterKey.TITLE])
-    return f"CATEGORY#{category}#TITLE#{title}"
+    return f"TITLE#{title}"
 
 
 def get_article_s3_key(frontmatter: dict) -> str:
@@ -177,9 +176,9 @@ def get_article_s3_key(frontmatter: dict) -> str:
 
 def get_review_sk(frontmatter: dict) -> str:
     """Returns the sort key for a review."""
-    review_subject = normalize_string(frontmatter[FrontMatterKey.SUBJECT])
+    # review_subject = normalize_string(frontmatter[FrontMatterKey.SUBJECT])
     review_title = normalize_string(frontmatter[FrontMatterKey.TITLE])
-    return f"REVIEW#{review_subject}#TITLE#{review_title}"
+    return f"TITLE#{review_title}"
 
 
 def get_review_s3_key(frontmatter: dict) -> str:
